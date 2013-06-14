@@ -1,0 +1,34 @@
+\label{capitolo2}
+\section{Metodologie di progetto HW}
+Nella progettazione hardware si segue un flusso di progettazione che sfrutta diversi livelli di astrazione. Questo flusso permette di partire da una specifica ad alto livello fino ad arrivare alla vera progettazione del sistema.
+I progettisti non si occupano dello sviluppo del sistema completo ma si innestano a un certo livello per progettare un singolo componente/funzione.\\
+Partiamo perciò dal contesto generale per spingerci poi a livello più piccolo.
+Ma prima di definire quali sono i flussi di progetto devo definire quali sono gli elementi che compongono questo flusso.
+\subsection{Dominio di rappresentazione dei circuiti}
+Dal 1986/87 si è passati dalla descrizione di un sistema come una rete di componenti, alla descrizione di tale sistema attraverso un linguaggio di descrizione.
+Domini di rappresentazione servono a identificare la complessità della descrizione nei diversi domini.
+%FIGURA DIAGRAMMA Y
+Il diagramma  a Y ripartisce lo spazio di progetto in tre parti:
+\begin{itemize}
+\item Dominio fisico: moduli posizionamento piastre cabinet un buon modo per descrivere le fasi del progetto per individuare il punto ne quale ci si trova.
+\item Dominio funzionale: è il dominio più vicino alle specifiche nel quale io specifico il comportamento del sistema. Si parte da una descrizione a livello di sistema che da una specifica ad altissimo livello descrive il comportamento del sistema (il tempo è trascurato); fino al livello di espressione logiche.
+\item Dominio strutturale: Uno schema logico del sistema che specifica l'interconnesione dei vari componenti per formare il sistema completo. Si considerano soltanto gli aspetti di interconnesione nel sistema.
+\end{itemize}
+I cerchi concentrici servono per individuare i vari livelli di progettazione da quello più esterno che è quello più astratto a quello più interno che è quello  più specifico fisico.\\
+Man mano che scendo nei livelli di astrazione il mio progetto diventa sempre più complesso ma comunque gestibili in quanto il sistema ad alto livello non è cambiato.\\
+Il passaggio da una vista ad un'altra è chiamato sintesi; è il passaggio da il livello funzionale a livello strutturale a parte nel caso del passaggio dal dominio funzionale a quello fisico chiamata sintesi circuitale.
+\subsubsection{Sintesi}
+Cosa vuol dire fare sintesi? Vuol dire passare dalla descrizione del sistema ad un livello che è il più astratto possibile e via via dettagliarlo scendendo di livello. Partendo dal dominio funzionale a quello strutturale a quello fisico per ogni livello di astrazione.
+Per la verifica (collaudo) si cerca di anticipare sempre più il momento della verifica in modo da individuare sempre prima la presenza di errori.
+\begin{description}
+\item[System Level]: Livello di descrizione del sistema in base alla sue funzionalità, descrizione molto astratta simile a quello utilizzato nei linguaggi di programmazione.
+\item[RT Level]: modello accurato vicino all'implementazione hardware con costrutti sequenziali per modellizzare costrutti più complessi come il \textit{while}. Manca ancora però l'idea di tempo.
+\item[Livello Logico]:livello di definizione nel quale vengono descritte le funzionalità del sistema a livello di porte logiche e registri
+\item[Transitor Level]:Applicazione a livello di transistor (solitamente CMOS); in questo caso possiamo avere diversi modelli in base alle applicazioni, functional equivalent checking o analisi timing accurata (tramite equazioni differenziali).
+\item[Layout level]: Siamo al livello più basso dove i transistor sono visti come dei poligoni disposti sui diversi strati. Qui sono presenti le metallizzazioni e le diffusioni.
+\end{description}
+\subsection{Fasi di progetto}
+Le fasi di progetto non sono isolate ma sono in parte sovrapposte o comunque esistono dei circoli tra le fasi.
+Per quanto riguarda i costi le prime fasi tendono a essere meno costose in quanto le simulazioni sono veloci e semplici; già a livello RTL però i costi aumentano in quanto si aggiungono molte complessità come la temporizzazione.
+Il flusso di progetto si può dividere in due macrofasi in quanto la seconda fase è già ben definita: front-end che comprende il "System level", il "Register transfert level" e il "Logic level"; e il back-end che comprende il Transistor, il Layout ed il Mask level.\\
+

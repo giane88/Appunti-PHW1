@@ -1,0 +1,324 @@
+\label{capitolo5}
+\section{Sintesi ad alto livello}
+I primi processi di automazione del desidn di cicruiti digitali tendevano a dare troppa enfasi agli aspetti incrementali degli algoritmi facendo assunzioni su componenti e ritardi non realistici generando circuiti di basso livello di scarsa qualità\\
+La sintesi architeturale di alto livello permette un innalzamento del livello di astrazione delle specifiche portando così a specifiche più snelle e più facilmente modificabili. Inoltre permette di ridurre il tempo di design e un analisi e ottimizzazione del circuito più efficace.\\
+Dati in ingresso una rappresentazione intermedia delle specifiche, un set di funzioni e i vincoli su area e tempi di esecuzione otteniamo in uscita dalla sintesi un data-path che include, \emph{functional resource} ovvero un insieme di risorse che operano sui dati, \emph{memori resources} cioè i meccanismi nei quali immagazzinare le informazioni, ed inifine \emph{interconnection resources}.
+Inoltre in uscita alla sintesi è presente anche un inisieme di meccanismi di controllo del circuito ovvero una macchina a stati finiti (FSM) un controller con microprogramma e uno schema di sincronizzazione.\\
+Gli scopi principali della sintesi ad alto livello sono, oltre a quelli tradizionali di minimizzazione di aria e ritardo e massimizzazione di velocità di clock, una migliore stima del comportamento del circuito, la testabilità e la sicurezza con la tolleranza ai guasti e l'autotest.
+I passi per la sintesi a livello architetturale sono:
+\begin{itemize}
+\item Trasformazione di un modello descritto in HDL in un modello IR (rappresentazione intermedia)
+\item Ottimizzazione del modello in maniera indipendente dalla sua futura implementazione
+\item Sintesi ed ottimizzazione architetturale.
+\end{itemize}
+\subsection{Sintesi ad alto livello}
+è utile rappresentare un circuito con un linguaggio intermedio in qunto questo  porta diversi vantaggi; primo fra tutti permette di analizzare il problema prendendo in considerazione sotto problemi più piccoli. Inoltre permette di isolare il front-end dal back-end, ed infine permette di effettuare ottimizzazioni indipendenti dalla tecnologia utilizzata.\\
+Esistono diversi tipi di rappresentazioni intermedie:
+\begin{itemize}
+\item Abstract syntax trees (AST) da una descrizione compatta della specifica in un linguaggio più adatto ad un calcolatore, ma questa rappresentazione è troppo legata al modo di scrivere codice e manca di completezza per quanto riguarda la sintesi.
+\item Linear operator form of tree (e.g., postfix notation)
+\item Directed acyclic graphs (DAG)
+\item Control flow graphs (CFG)
+\item Program dependence graphs (PDG)
+\item Static single assignment form (SSA)
+\item 3-address code
+\item Hybrid combinations
+\end{itemize}
+Diamo ora alcune definizioni per capire meglio la sintesi ad alto livello. Si definisce \emph{blocco base} un insieme di istruzioni che al loro interno non presentano alcun punto di ingresso (eccetto nella prima istruzione), e non presentano salti (eccetto nell'ultima). L'idea è quella che non si può entrare in un blocco base eccetto che dalla prima istruzione e non si può uscirne se non dall'ultima ed ogni operazione al suo interno viene eseguita se e solo se tutte le istruzioni precedenti sono state eseguite.
+Tutto questo semplifica l'identificazione del controllo.\\
+Il \emph{leader} è quell'istruzione di ingresso in un blocco base ovvero tutte le istruzioni di destinazione di un salto o quelle che si trovano subito dopo un salto condizionale.\\
+Una volta identificati tutti i punti di partenta posso identificare i \emph{basic-block} aggiungendo al blocco tutte le istruzioni che incontro partendo da un leader e fino a quando non incontro un altro leader.\\
+\subsubsection{Control flow graph - CFG}
+Una volta identificati i blocchi base possiamo collegarli con degli archi che rappresentano i salti tra i blocchi; otteniamo un \emph{Control Flow Graph}.\\
+Un \emph{control flow graph} è un grafico nel quale ogni nodo contiene un'istruzione o una sequenza di istruzioni(blocco base) e gli archi orientati indicano un possibile flusso di controllo.\\
+Dato un CFG si dice che un nodo x domina un nodo y se e solo se ogni percorso che da \emph{"Entry"} arriva ad y contiene x, in questo caso x viene definito \emph{dominatore}.
+Intuitivamente possiamo affermare che se un blocco domina un altro blocco, nell'esecuzione verrà eseguito prima il blocco dominante.\\
+Questi grafi possono presentare alcuni cicli (\emph{natural loop}) essi hanno alcune proprietà; hanno un singolo blocco di accesso chiamato \emph{header} ed esiste un unico percorso che crea il loop che dall'ultimo blocco base si ricongiunge al primo chiamato\emph{backedge}, e l'unico punto di ingresso del ciclo è lo header. Per individuare il backedge bisogna trovare quel percorso $x\rightarrow y$ nel quale y domina x.
+Per individuare i loop e semplificare il grafo si usa un meccanismo molto semplice; si individuano tutti i backedge presenti nel grafo, per ogni backedge si caratterizza il loop individuando l'header e i basic block che lo compongono, si uniscono i loop che hanno lo stesso header sommando i rami di backedge e i basic block dei due loop.
+\subsubsection{Static Single Assigment Form}
+Questa tecnica ha lo scopo di semplificare la procedura di ottimizzazione globale. Essa afferma che un programma è nella forma SSA se ogni variabile è assegnata al massimo una volta.\\
+Questa analisi si definisce statica in quanto può essere fatto a \emph{compile-time}. Vediamo ora un esempio di codice normale e il suo equivalente SSA
+$$
+\begin{array}{ccccc}
+a & := & b & + & c\\
+b & := & c & + & 1\\
+d & := & b & + & c\\
+a & := & a & + & 1\\
+e & := & a & + & b\\
+\end{array}
+$$
+$$
+\begin{array}{ccccc}
+a_1 & := & b_1 & + & c_1\\
+b_2 & := & c_1 & + & 1\\
+d_1 & := & b_2 & + & c_1\\
+a_2 & := & a_1 & + & 1\\
+e_1 & := & a_2 & + & b_2\\
+\end{array}
+$$
+Tutto questo perchè altrimenti imporrei dei vincoli che in realtà non esistono. Come nel caso del primo pezzo di codice in cui le variabili \emph{a} devono usare lo stesso registro anche se, come visto nel secondo esempio, sono due variabili diverse.\\
+Nel caso di un costrutto condizionale nel quale non si sa di preciso quale variabile viene assegnata si identifica nel seguente modo:
+\begin{verbatim}
+if B then
+	a1:= b
+else
+a2:= c
+End
+a3:= PHI(a1,a2);
+\end{verbatim}
+La funzione $\Phi$ si trova normalmente all'inizio di un blocco base e permette di selezionare tra due valori derivanti da un blocco di controllo.\\
+Un'altra cosa da controllare è se le funzioni all'interno del basic block sono nella forma 3-address ovvero nella forma "una variabile scritta due variabili lette".
+L'SSA viene spesso associato al CFG ed esso viene implementato conìme nell'esempio di figura \ref{fig:cfgssa}
+\begin{figure}[thb]
+\centering
+\includegraphics[width=16cm]{img/cfgssa.png}
+\caption{Esempio di applicazione dei meccanismi SSA e CFG ad un programma}
+\label{fig:cfgssa}
+\end{figure}
+\subsubsection{Data flow graph}
+Il data flow graph mostra il comportamento del modello a livello di operazioni, ed è utile per mostrare il percorso dei dati e per identificare quali operazioni possono essere parallelizzate e quali invece devono per forza essere eseguite in sequenza.\\
+Ad ogni blocco base viene associato un DFG nel quale le operazioni sono i nodi e i dati sono i vertici e gli archi esprimono le dipendenze.
+Esistono diversi tipi di dipendenze tra i dati:
+\begin{itemize}
+\item \textbf{Flow} read-after-write
+\item \textbf{Anti} write-after-read
+\item \textbf{Output} write-after-write
+\item \textbf{Input} read-after-read
+\end{itemize}
+Le dipendenze di tipo \emph{Input} non creano vere dipendenze, mentre le dipendenze di tipo anti e output possono essere rimosse mediante l'utilizzo della tecnica di rinomina dei registri (SSA). A questo punto il DFG individua solamente le dipendenze di tipo \emph{Flow}.
+Un esempio di DFG è mostrato riferito al codice di seguto è quello in fig. \ref{fig:dfg}.
+\begin{verbatim}
+xl = x+dx
+ul = u-(3*x*u*))-3*y*dx
+yl=y+u*dx
+c=xl<a
+\end{verbatim}
+\begin{figure}[thb]
+\centering
+\includegraphics[width=16cm]{img/dfg.png}
+\caption{Esempio di Data Flow Graph}
+\label{fig:dfg}
+\end{figure}
+In questo caso noi stiamo ragionando a livello di basic block e quindi le precedenze sono riferite solo al loro interno. Combinando però il data flow graph e il control flow graph possiamo individuare le precedenze a livello di intero sistema. Un esempio di CDFG è mostrato in fig. \ref{fig:cdfg}
+\begin{figure}[t]
+\centering
+\includegraphics[width=16cm]{img/cdfg.png}
+\caption{Esempio di CDFG con relativo codice}
+\label{fig:cdfg}
+\end{figure}
+\subsubsection{Hierarchical Task Graph (HTG)}
+A questo bunto risulta complesso però gestire le ristrutturazioni del sistema; questo non è un problema per grafi di tipo gerarchico \emph{Hierarchical Task Graph} (fig. \ref{fig:htg}).
+\begin{figure}[t]
+\centering
+\includegraphics[width=16cm]{img/htg.png}
+\caption{Esempio di grafo gerarchico}
+\label{fig:htg}
+\end{figure}
+I grafi di tipo gerarchico mi permettono di individuare quali operazioni potrebbero essere eseguite in parallelo in modo da aumentare le prestazioni del mio sistema.
+\subsubsection{Program dependency graph e system dependency graph}
+Il \emph{PDG} (Program Dependency Graph) rappresenta il funzinamento di una singola procedura in cui i nodi rappresentano operazioni o predicati di controllo mentre gli archi rappresentano le dipendenze dei dati e di controllo.\\
+L'\emph{SDG} (System Dapendency Graph) è una collezione di PDG connessi mediante archi che rappresentano chiamate e passaggi di parametri; esso rappresenta un astrazione del codice nel quale vengono esplicitate le dipendenze e permette un'individuazione più facile delle parti di codice parallelizzabili
+\subsubsection{Controllo delle dipendenze}
+Un nodo A e un dipende da un nodo B se un cambiamento diB fa eseguire o no il nodo A.\\
+Una dipendenza di controllo si definisce se Y è controllato dipendentemente da X se e solo se esiste un percorso P da X a Y nel CFG nel quale non esiste un nodo Z in P che è post-domina Y e Y non è post dominato da X.
+Tramite questa definizione possiamo distinguere tra le dipendenze fittizie da quelle reali.
+\subsection{Tecniche di trasformazione}
+Esistono diverse tecniche di trasformazione che servono a modificare il codice in modo da evitare le dipendenze o prepararlo per una fase di ottimizzazione.
+Le tecniche principali sono:
+\begin{itemize}
+\item loop pipelining
+\item dynamic renaming
+\item copy propagation
+\item common subexpression elimination
+\item speculative code motion
+\item dynamic loop unrolling
+\end{itemize}
+Partiamo da un codice di esempio e analiziamo alcune tecniche:
+\begin{verbatim}
+while(k<10)
+	sum+=++k;
+\end{verbatim}
+\begin{figure}[thb]
+\centering
+\includegraphics[width=16cm]{img/transform.png}
+\caption{DFG del codice di esempio}
+\label{fig:transform}
+\end{figure}
+\paragraph{Loop Pipelining}
+Nel caso di loop pipelining si cerca di eseguire le operazioni all'interno del loop in modo più possibile parallelo o comunque cercando di anticipare alcune operazioni. Dalla figura \ref{fig:loopP} vediamo come le ultime due operazioni del ramo di sinistra possano essere eseguite in parallelo.
+\begin{figure}[hbt]
+\centering
+\includegraphics[width=16cm]{img/loopP.png}
+\caption{Esempio di loop pipelining}
+\label{fig:loopP}
+\end{figure}
+\paragraph{Copy propagation}
+In questo caso si crea una copia di un oggetto che viene propagata in modo da invertire eventuali dipendenze RAW come possiamo vedere in figura \ref{fig:copyP}
+\begin{figure}[hbt]
+\centering
+\includegraphics[width=16cm]{img/copyP.png}
+\caption{Esempio di copy pipelining}
+\label{fig:copyP}
+\end{figure}
+\paragraph{Speculative Code Motion}
+La speculazione è una tecnica che modifica il codice muovendo alcuni blocchi di codice dentro alcuni blocchi base  per lo più all'interno di percorsi condizionali. Questo permette di aumentare il parallelismo e massimizzare le risorse utilizzate. Esistono diversi tipi di speculazione:
+\begin{itemize}
+\item \textbf{Condizionale} nel quale le operazioni eseguite dopo una scelta, ove possibile, vengono portate all'interno delle scelte stesse e la decisione viene presa alla fine dei due rami di scelta.
+\item \textbf{Speculation} Le operazioni che si trovano dentro una decisione e che possono essere eseguite in parallelo vengono eseguite prima della decisione stessa e alla fine viene scelto quale risultato utilizzare
+\item \textbf{Reverse Speculation} In questo caso i due rami di decisione vengono eseguiti contemporaneamente e le operazioni che si trovavano prima della decisione vengono duplicate all'interno dei due rami.
+\item \textbf{Across hierarchical blocks} Operazioni che si trovano dopo due rami di decisione vengono anticipati prima della decisione per aumentarne il parallelismo.
+\end{itemize}
+Uno schema riassuntivo è mostrato in fig. \ref{fig:speculation}
+\begin{figure}[thb]
+\centering
+\includegraphics[width=16cm]{img/speculation.png}
+\caption{Schema riassuntivo sulla speculazione}
+\label{fig:speculation}
+\end{figure}
+\paragraph{Loop Unrolling}
+La tecnica del loop unrolling consiste nel trasformare un normale loop come quello del codice seguente:
+\begin{verbatim}
+for(i=0; i<32; i++){
+	sum=sum+a[i]*b[i];
+}
+\end{verbatim}
+nel seguente ciclo:
+\begin{verbatim}
+for(i=0; i<31; i++){
+	sum=sum+a[i]*b[i];
+	sum=sum+a[i+1]*b[i+1];
+}
+\end{verbatim}
+In modo da effettuare una leggera pipelining all'interno del loop e rendere l'albero decisionale più "bilanciato" come mostrato in figura \ref{fig:loopunroll}
+\begin{figure}[thb]
+\centering
+\includegraphics[width=16cm]{img/loopU.png}
+\caption{Schema di loop unrolling}
+\label{fig:loopunroll}
+\end{figure}
+\subsection{Lo scheduling}
+Per scheduling si intende l'assegnamento dell'ordine di esecuzione alle operazioni nel tempo, possibilmente rispettando vincoli temporali e di hardware sfruttando potenziali parallelismi e cicli.\\
+Per risolvere i problemi di scheduling è necessario avere a disposizione il modello del circuito a livello intermedio (soprattutto un CDFG), il tempo di ciclo  e il ritardo delle operazioni, a livello di scheduling è necessario conoscere il tempo di inizio e i vincoli temporali tutto questo tenendo conto del trade-off tra area e ritardo.\\
+Il problema di individuare lo scheduling migliore è un problema NP-difficile esistono così diverse tecniche euristiche per risolvere tale problema, le più comuni sono:
+\begin{itemize}
+\item ASAP (As soon as possible)
+\item ALAP
+\item List scheduling, Resource Constrained algorithms
+\item Force directed algorithms
+\item Path based
+\item Percolation algorithms
+\item Simulated annealing
+\item Tabu search and other heuristics
+\item Simulated evolution
+\item Linear Programming
+\item Integer Linear Programming
+\end{itemize}
+\paragraph(ASAP)
+Partendo dal data flow graph in figura \ref{fig:dfgexe} pensiamo a come "schedulare" le operazioni, ovvero assegnare l'inizio dell'esecuzione delle operazioni a determinati istanti di tempo per. Nel caso in esempio $v_1$, $v_2$, $v_3$, $v_4$, $v_10$ possono partire subito in quanto ricevono degli ingressi primari, essendo i tempi di esecuzione unitari, all'istante \textbf{2} possiamo far partire le operazioni $v_5$, $v_6$, $v_9$ e $v_11$.
+Questo scheduling però tende a sprecare risorse come si può vedere nello schema dello scheduling in figura \ref{fig:schedu}.
+\begin{figure}[thb]
+\centering
+\includegraphics[width=16cm]{img/dfgexe.png}
+\caption{Control Data Flow Graph}
+\label{fig:dfgexe}
+\end{figure}
+\begin{figure}[hb]
+\centering
+\includegraphics[width=16cm]{img/schedu.png}
+\caption{Scheduling ASAP}
+\label{fig:schedu}
+\end{figure}
+Dato uno scheduling posso creare il controllore creando la macchina a stati che implementa quello scheduling per il singolo basic block, componendo tutte le macchine a stati si crea il controllore di tutto il sistema.
+\paragraph{ALAP}
+Duale rispetto all'algoritmo ASAP l'ALAP risolve i problemi dei vincoli temporali. Il tempo di latenza massimo viene impostato nel tempo di latenza calcolato dall'ASAP e l'ALAP sicuramente rispetterà questo vincolo.\\
+Definiamo ora cos'è la mobilità; essa è riferita ad ogni operazione ed è la differenza tra l'istante di inizio dell'operazione in esame nei due scheduling.
+Nel caso una operazione abbia mobilità uguale a 0 allora significa che lo scheduling di quella operazione in ASAP e in ALAP è uguale. In caso non abbia risorse necessarie per schedulare le operazioni parallelamente, la mobilità può darmi un indice per valutare quali operazioni schedulare per prime per non incrementare la latenza.
+\begin{figure}[hb]
+\centering
+\includegraphics[width=16cm]{img/alap.png}
+\caption{Scheduling ALAP}
+\label{fig:alap}
+\end{figure}
+\subsubsection{Scheduling complesso}
+Fino ad ora abbiamo visto lo scheduling applicato ad un singolo basic block ora vediamo dato un CDFG completo come costruire lo scheduling completo del sistema.
+Come detto prendendo le singole macchine a stati dei singoli basic block e componendole si ottiene la macchina a stati del sistema. Inoltre analizzando le risorse utilizzate dai basic block si ottiene il numero di risorse necessarie per l'esecuzione dell'intero sistema. Si può fare ciò perchè i singoli blocchi sono in mutua esclusione.
+\subsubsection{Scheduling con vincoli}
+In molti casi dobbiamo rispettare alcuni vincoli temporali per quanto riguarda lo scheduling; questi vincoli possono essere sia di tipo massimo ovvero non posso superare un certo limite temporale, ma anche di tipo minimo ovvero non posso completare l'esecuzione prima di un determinato tempo.\\
+A questo punto io posso rappresentare questi vincoli nel DFG (fig. \ref{fig:vincoli}) questo permette, tramite opportuni algoritmi, di risolvere il problema dello scheduling.\\
+\begin{figure}[t]
+\centering
+\includegraphics[width=16cm]{img/vincoli.png}
+\caption{Esempio di DFG con vincoli temporali}
+\label{fig:vincoli}
+\end{figure}
+\subsection{Resource Binding}
+Lo scheduling trascura un componente fondamentale della progettazione, ovvero la distribuzione delle risorse. Il \emph{Resource Binding} può essere effettuato in maniera molto banale assegnando alla prima risorsa libera l'operazione da eseguire, ma più efficentemente si può applicare alcuni meccanismi per l'individuazione dell'allocazione delle risorse e la costruzione del Data Path.\\
+Bisogna anche stabilire se il nostro datapath possiede \emph{resource sharing} che non è così ovvio nel caso di progetti molto grandi e con costi di interconnessione molto alto.
+\subsection{Register allocation}
+A questo punto dell'analisi abbiamo costruito il controllore del sistema e le risorse necessarie per eseguire le operazioni. Ora però dobbiamo rendere disponibile i dati alle risorse; per fare ciò dobbiamo effettuare la \emph{Register Allocation} ovvero stimare quali sono i valori che devono essere memorizzati e individuare quali sono i registri compatibili per memorizzare i dati.
+\subsubsection{Scheduled data flow graph}
+Lo \emph{Scheduled Data Flow Graph} non è altro che un Data Flow Graph nel quale vengono evidenziati i "confini" delle operazioni come si vede in figura \ref{fig:sdfg}
+\begin{figure}[hbt]
+\centering
+\includegraphics[width=16cm]{img/sdfg.png}
+\caption{Scheduled Data Flow Graph}
+\label{fig:sdfg}
+\end{figure}
+In questo schema le linee tratteggiate rappresentano il tempo di inizio e di fine del ciclo di clock e tra un ciclo di clock e l'altro i valori devono essere memorizzati. Perciò per ogni operazione possiamo rifarci allo schema in figura \ref{fig:register} dove possiamo distinguere i registri di lettura e quello di scrittura.
+\begin{figure}[thb]
+\centering
+\includegraphics[width=10cm]{img/register.png}
+\caption{Schema dei registri}
+\label{fig:register}
+\end{figure}
+Questo è il caso generale per individuare quali variabili debbono essere memorizzate ma esistono altri metodi per individuare i registri, ad esempio:
+\begin{description}
+\item[Variabili:] in un codice (possibilmente scritto in 3-address form) tutte le variabili rappresentano un registro.
+\item[Registri dichiarati:] ovvero i registri vengono dichiarati dai progettisti
+\item[Valori:] è quello che abbiamo già visto ovvero che ogni arco rappresenta un valore da memorizzare e quindi un registro.
+\item[Istanze di valori:] Aggiungere dei valori identici in caso di archi che attraversano più cicli di clock. Questo aumenta il grado di libertà sui registri
+\item[Istanze limitate di valori:] Simile all'istanze di valori quelle limitate applicano la copia dei valori un limitato numero di volte.
+\end{description}
+A questo punto abbiamo capito quali sono i possibili registri che dobbiamo allocare come si vede nello schema di figura \ref{fig:register2}
+\begin{figure}[hbt]
+\centering
+\includegraphics[width=16cm]{img/register2.png}
+\caption{SDFG con registri}
+\label{fig:register2}
+\end{figure}
+\subsubsection{Il problema dell'allocazione dei registri}
+Il problema che ci poniamo, una volta individuati quali sono i valori da memorizzare, è quello di assegnare ad ogni valore un registro fisico minimizzando il numero dei registri.\\
+Nel caso di rappresentazione in SSA automaticamente abbiamo l'insieme degli storage value.\\
+Per risolvere il problemanegli anni si è visto che il metodo più efficave è l'algoritmo di colorazione dei grafi.\\
+Vediamo ora un esempio
+\begin{verbatim}
+a := c+d;
+e := a+b;
+f := e-1;
+\end{verbatim}
+Come si può vedere la variabile \emph{a} viene scritta nella prima istruzione e viene letta l'ultima volta nella seconda istruzione, si dice che il suo "tempo di vita" è di una istruzione; per vedere se due storage value sono in conflitto bisogna vedere se i loro tempi di vita si intersecano.
+A questo punto riusciamo a costruiro un grafo di interferenza tra gli storage value come quello in figura \ref{fig:storage2} e \ref{fig:storage}
+\begin{figure}[thb]
+\centering
+\includegraphics[width=16cm]{img/storage2.png}
+\caption{Esempio di grafo di interferenza}
+\label{fig:storage2}
+\end{figure}
+\begin{figure}[thb]
+\centering
+\includegraphics[width=10cm]{img/storage.png}
+\caption{Esempio di grafo di interferenza}
+\label{fig:storage}
+\end{figure}
+A questo punto se due storage value hanno archi che li uniscono allora non possono utilizzare lo stesso registro. In questo caso si può utilizzare l'algoritmo di un grafo per trovare in maniera ottima il numero di registri minimo.
+\subsection{Rilascio delle risorse semplificatrici}
+Fino ad ora abbiamo assunto alcune ipotesi per semplificarci le spiegazioni, ora però vediamo alcune di queste e come eliminarle.\\
+La prima ipotesi è che tutte le operazioni avessero lo stesso ciclo di clock. Nella maggior parte dei casi però questo non è vero, un esempio è dato dal fatto che il moltiplicatore impiega più tempo di un sommatore come si vede in figura \ref{fig:udelay},
+esistono però alcune tecniche come il \emph{multicycling} dove un operazione può impiegare più di un ciclo di clock questo mi permette di dimezzare il ciclo di clock; il \emph{chaing} consiste nel mantenere lo stesso ciclo di clock e di eseguire le operazioni più veloce nello stesso ciclo di clock; il \emph{pipelining} consiste di eseguire due operazioni lente in due istanti di clock successivi senza che la prima sia conclusa.
+\begin{figure}[t]
+\centering
+\includegraphics[width=16cm]{img/udelay.png}
+\caption{Ottimizzazioni per operazioni multiciclo}
+\label{fig:udelay}
+\end{figure}
+

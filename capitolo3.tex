@@ -1,0 +1,326 @@
+\label{capitolo3}
+\section{Analisi temporale}
+Durante il corso di reti logiche abbiamo visto metodi di ottimizzazione che riguardano la minimizzazione dell'occupazione spaziale del circuito; nel caso in cui dovessimo ottimiziare il tempo di esecuzione però le tecniche studiate non sono adatte.\\
+Introduciamo alcune definizioni:
+\begin{description}
+\item[$A_k$:] tempo di arrivo (Arrival time)
+\item[$R_k$:] tempo richiesto (Required time) è il tempo che si richiede per completare la computazione ed avere un risultato stabile all'uscita.
+\item[$S_k$:] scarto (Slack) ovvero differenza tra  tempo richiesto e tempo di arrivo; se questa quantità è negativa allora il progetto non soddisfa i vincoli temporali.
+\end{description}
+Introduciamo ora due modelli che rappresentano in diversa maniera il ritado temorale.
+Il primo presenta un grafo con n nodi ai quali viene associato un certo ritardo e nel quale entrano un certo numero di ingressi. In questo caso il massimo tempo di uscita è dato dal massimo tempo di ingresso al nodo più il tempo di attraversamento del nodo $A_k=max(A_1,A_2,A_3)+D_k$.\\
+Nel secondo modello, invece, il tempo di esecuzione è spostato sugli archi di ingresso; anche in questo caso da il tempo di uscita è dato dal massimo tra i tempi di ingressi $A_k=max(A_1+D_k,A_2+D_k,A_3+D_k)$.\\
+\begin{figure}[hbt]
+\centering
+\includegraphics[width=5cm]{img/ritardo.png}
+\caption{Esempio di ritardo di computazione}
+\label{fig:ritardo}
+\end{figure}
+\subsection{Analisi statica}
+Per calcolare il percorso critico di un circuito devo fare prima un preprocesso che calcola la massima distanza di ogni nodo dagli ingressi primari tramite l'algoritmo \textbf{LEVEL} che parte dai nodi di uscita e calcola in maniera ricorsiva che restituisce il distanza di ciascun nodo nel caso questo sia stato calcolato altrimenti richiama l'algoritmo per ogni nodo di ingresso. Dopodichè si calcola il tempo di arrivo (\textit{arrival time}) tramite l'algoritmo \textbf{ARRIVAL} che, sfruttando l'ordinamento topologico del primo algoritmo, calcola successivamente il tempo di arrivo al nodo di uscita partendo da quelli di ingresso.\\
+\begin{verbatim}
+// level of PI nodes initialized to 0, 
+// the others are set to -1. 
+// Invoke LEVEL from PO 
+Algorithm LEVEL(k) { // levelize nodes
+	if( k.level != -1) 
+		return(k.level)
+	else
+		k.level = 1+max{LEVEL(k_i)|k_i fanin(k)}
+	return(k.level) 
+}
+// Compute arrival times:
+// Given arrival times on PI 
+Algorithm ARRIVAL() {
+	for L = 0 to MAXLEVEL
+		for {k|k.level = L}
+			A_k = MAX{A_ki} + D_k
+}
+\end{verbatim}
+\subsection{Required Times}
+Una volta calcolati i tempi di ingresso si procede ad analizzare il require time, ovvero i tempi ai quali è necessario avere i valori in uscita. I require time è una specifica del progetto. A questo punto vorrei sapere anche quali sono i require time all'interno della rete per individuare i punti critici del sistema. Per fare ciò si procede calcolando il require time ad un nodo come require time all'uscita del nodo successivo meno tempo di attraversamento del nodo successivo e tra tutte le uscite prendo il minimo.
+Il seguente sistema specifica in modo matematico le specifiche del sistema tramite lo slack ovvero la differenze tra require time ed arrival time.
+Nel caso questo sia negativo ho trovato un percorso critico del sistema.
+$$
+\begin{array}{rcl}
+S_k & = & R_k-A_k\\
+R{m,k}&=&R_k-A_k\\
+A_k&=&max\{A_{ki}\}+D_k\\
+S_{m,k}&=&R_{m,k}-A_m\\
+S_{m,k}&=&S_k+max\{A_ki\}-A_m\\
+S_m&=&min\{S_{m,kr}\}\\
+\end{array}
+\begin{array}{rcl}
+k_i,m &\in& fanin(k)\\
+k_r &\in& fanout(m) 
+\end{array}
+$$
+Un percorso critico è un percorso $P=\{i_1,i_2,\dots,i_p \mbox{ dove } S_{i_k,i_{k+1}}<0$.
+Il problema di ottimizzazione della static time analysis si riduce a trovare il percoso con slack negativo più grande in valore assoluto, ovvero minimizzare $max\{-S_i,0\}$.
+Veniamo ora al perchè vi è la necessità di effettuare un'analisi temporale del circuito. Lo scopo principale è quello di stimare quando l'uscita del circuito diventa stabile e perciò verificare la correttezza del mio dispositivo.
+Inoltre l'analisi temporale permette di individuare dove è più efficace effettuare delle ottimizzazioni e vedere dove il sistema non rispetta i vincoli temporali.\\
+Esistono diversi metodi per effettuare time analysis il metodo più grezzo per  effettuare l'analisi temporale è effettuare una simulazione con tutti i vettori di input; ma questa tecnica risulta essere molto dispendiosa. Perciò il metodo che utilizzeremo sarà l'analisi temporale a livello di gate.\\
+Prima di procedere però dobbiamo effettuare alcune ipostesi; la prima è quella di avere una caratterizzazione predefinita dei ritardi delle porte logiche e la seconda quello di effettuare la simulazione a livello logico.
+I problemi principali di questo tipo di analisi sono l'individuazione dei \emph{false path} ovvero di quei percorsi che non vengono attivati qualsiasi siano i vettori di input, in modo da eliminarli in quanto non vengono mai attivati e concentrarsi su quelli attivi. Altrimenti avremmo una stima per eccesso del ritardo.
+\subsection{Analisi statica}
+\subsubsection{Analisi dei false path}
+L'analisi dei false path serve ad individuare quei percorsi che non vengono attivati durante l'esecuzione dei programmi in modo da non doverli conteggiare nel calcolo dei ritardi nei percorsi critici. Questa analisi è complessa ma permette, almeno, di non sottostimare il tempo di ritardo e di sovrastimarli leggermente.\\
+Per effettuare l'analisi dei false path devo andare ad individuare le condizioni che mi permettono di tenere attivo tutto il percorso; qlcune di queste condizioni sono molto semplici da individuare se teniamo conto che il nostro circuito è creato da sole porte AND e OR.
+Introduciamo il concetto di valore controllante per una porta logica; per valore controllante si intende un valore che applicato ad una porta logica permette di conoscere il risultato in uscita senza conoscere il valore dell'altro ingresso. Nel caso di una porta AND il valore controllante è 0 mentre per una porta OR è 1 come mostrato in tabella \ref{tab:valoricont}
+\begin{table}[t]
+\centering
+\begin{tabular}{|c|c|c|}
+\hline
+Porta&Valore controllante&Valore non controllante\\
+\hline
+AND&0&1\\
+\hline
+OR&0&1\\
+\hline
+\end{tabular}
+\caption{Tabella dei valori controllanti e non controllanti per le porte AND e OR.}
+\label{tab:valoricont}
+\end{table}
+\subsubsection{Statically-sensitizable}
+Ora però sorge la domanda se il false path individuato non influisce realmente sul ritado di computazione. Per individuare ciò si usa la \emph{statically-sensitization analysis}.\\
+Un percorso si definisce \emph{statically-sensitizable} se esiste un vettore di input che imposta a tutte le porte, che ricevono in ingresso un input, un valore non controllante indipendentemente dal ritardo delle porte.
+Il percorso più lungo individuato è  il \emph{il percorso più lungo attivabile}.\\
+Questa affermazione è vera finche non introduciamo i ritardi delle porte.
+Infatti è possibile che una porta abbia un valore controllante ad un certo istante di tempo e un valore non controllante in un altro istante di tempo come nell'esempio di fig.\ref{fig:timesim}
+\begin{figure}[ht]
+\centering
+\includegraphics[width=16cm]{img/timesim.png}
+\caption{Esempio di valore non controllante ad un certo istante di tempo}
+\label{fig:timesim}
+\end{figure}
+\subsubsection{Timing Simulation}
+Nella timing simulation si imposta un vettore di ingresso e si simula il circuito tenendo conto dei ritardi delle porte come in  figura \ref{fig:timing1}
+\begin{figure}[thb]
+\centering
+\includegraphics[width=11cm]{img/timing1.png}
+\caption{Esempio di timing simulation}
+\label{fig:timing1}
+\end{figure}
+Questo meccanismo è un po impreciso infatti il ritardo delle porte è una quantità variabile $[0,d]$ dove d è il ritardo massimo.
+Come si vede dalla figura \ref{fig:timing2} diminuire il ritardo delle porte può portare ad aumentare il ritardo complessivo del percorso. Questo aspetto viola la regola dello speedup monotono. Tale regola afferma che dato un circuito C e un circuito C\' ottenuto da C riducendo il ritardo di alcune porte allora il ritardo complessivo deve essere minore di quello di C.
+\begin{figure}[thb]
+\centering
+\includegraphics[width=11cm]{img/timing2.png}
+\caption{Esempio di timing simulation con riduzione dei ritardi}
+\label{fig:timing2}
+\end{figure}
+\subsubsection{Simulazione X-Valued}
+La simulazione X-Valued assomiglia molto alla simulazione "timing" in questo caso però si trascurano i valori antecedenti all'istante di inizio simulazione; tale concetto è espresso da una notazione particolare mostrata in figura \ref{fig:xvalue}
+\begin{figure}[thb]
+\centering
+\includegraphics[width=11cm]{img/xvalue.png}
+\caption{Esempio di X-Value simulation}
+\label{fig:xvalue}
+\end{figure}
+In questo caso sappiamo che dall'istante successivo alla "X" il valore è stabile.
+Questo tipo di simulazione è la più accurata per circuiti logici con porte semplici.\\
+Per conoscere il vero valore del ritardo massimo devo però provare tutti i diversi vettori di ingresso del circuito.
+\subsubsection{Algoritmi di analisi dei percorsi critici}
+Verificare la criticità di ogni percorso di un circuito logico risulta essere troppo costoso; per fare un esempio analizziamo quale sarebbe il procedimento (ricerca per bisezione).
+\begin{verbatim}
+Start: set L = L_top /* = topological longest path delay */
+L_old= 0
+2. Binary search: 
+If (Delay(L))
+	!L = |L-L_old|/2, L_old = L, L = L-!L
+Else,  
+	!L = |L-L_old|/2, L_old = L, L = L +!L
+If (L > L_top or !L < threshold), L = L_old
+\end{verbatim}
+La funzione \emph{Delay(L)} è uguale a 1 se esiste un vettore di ingresso tale che fa si che l'uscita sia stabile solo dall'istante t tale che $L\leq t$. Questo problema può essere risolto con due metodi:
+\begin{itemize}
+\item SAT problem
+\item timed-ATPG
+\end{itemize}
+\subsection{SAT based False path analysis}
+L'analisi dei percorsi critici attraverso il metodo SAT permette di determinare se esistono dei vettori di ingresso per cui l'uscita è stabile al tempo t=T e se questo insieme di vettori comprende l'insieme dei vettori positivi che posso applicare al circuito.
+Per fare ciò basta prendere la funzione caratteristica di S(insieme dei vettori che soddisfa la condizione) e di S(T) (insieme dei vettori che non soddisfa la condizione) allora se $F\wedge!F(T)=\emptyset$ allora non esiste nessun vettore che rende non stabile l'uscita dopo T (F e F(T) funzioni caratteristiche rispettivamente di S e S(T)).
+L'idea è quella di verificare se esiste un certo istante T tale per cui $S(T)=S$ dove S è l'insieme di tutti i vettori di ingresso.
+\paragraph{Esempio}
+Prendiamo in considerazione il circuito di figura \ref{fig:sat1}
+Vogliamo verificare se esiste un qualche vettore di ingresso per cui l'uscita non è stabile ad un tempo $t>2$.
+\begin{figure}[hbt]
+\centering
+\includegraphics[width=12cm]{img/sat1.png}
+\caption{Esempio di analisi con il metodo SAT}
+\label{fig:sat1}
+\end{figure}
+Dividiamo il problema in due sottoproblemi, il primo nel caso l'uscita sia uguale a 1 e il secondo nel caso l'uscita sia uguale a 0
+Verifichiamo ora che l'uscita è uguale a 1 al tempo t=2.
+Per fare ciò calcoliamo la funzione caratteristica $g(1,t=2)$ che calcola i vettori di ingresso che rendono stabile l'uscita all'istante t=2.
+$$
+\begin{array}{rcl}
+g(1,t=2)&=&d(1,t=1)\cap f(1,t=1)\\
+&=&(a(0,t=0)\cap b(0,t=0))\cap (c(1,t=0)\cup e(1,t=0))\\
+&=&!a!b(c\cup \emptyset)=!a!bc=S_1(t=2)
+\end{array}
+$$
+La funzione caratteristica è una funzione utilizzata per rappresentare in modo insiemistico le funzioni logiche nel quale l'OR è l'unione l'AND l'intersezione.\\
+Calcoliamo ora l'onset del circuito ovvero quali valori rendono stabile l'uscita in qualsiasi istante di tempo. la funzione caratteristica dell'onset è indicata da $g(1,t=\infty)$. In questo esempio è:
+$$
+g(1,t=\infty)=!a!bc=g(1,t=2)=S_1
+$$
+Il fatto che i due insiemi siano uguali fa si che per l'uscita uguale a 1 non esistono vettori di ingresso che rendono l'uscita stabile a un tempo $t>2$.\\
+Ora dobbiamo applicare i ragionamenti precedenti anche per l'uscita stabile al valore 0. Quindi calcoliamo la funzione caratteristica all'istante 2 e all'istante infinito.
+$$
+\begin{array}{rcl}
+g(0,t=2)&=&d(0,t=1)\cup f(0,t=1)\\
+&=&(a(1,t=0)\cup b(1,t=0))\cup (c(0,t=0)\cap e(0,t=0))\\
+&=&a+b+(!c\cap \emptyset)=a+b=S_0(t=2)
+\end{array}
+$$
+Mentre l'offset del circuito è:
+$$g(0,t=\infty)=offset=a+b+!c=S_0$$
+$$g(0,t=\infty)/g(0,t=2)=(a+b+!c)!(a+b)=!a!b!c$$
+Questo significa che per il vettore di ingresso [0,0,0] l'uscita non è stabile al tempo 2.
+\subsection{Ottimizzazione Combinatoria}
+I fattori che determinano il ritardo in un circuito si possono suddividere in 3 categorie a loro volta suddivisibili in sottocategorie:
+\begin{itemize}
+\item fattori che riguardano la tecnologia del circuito:
+	\begin{itemize}
+		\item Tipo di tecnologia utilizzata per la costruzione del circuito
+		\item Tipo di gate 
+		\item La dimensione dei gate più grandi danno prestazioni migliori
+	\end{itemize}
+	\item fattori che riguardano la struttura logica del circuito:
+	\begin{itemize}
+		\item La lunghezza dei percorsi di computazione.
+		\item I false path.
+		\item Meccanismi di buffering.
+	\end{itemize}
+	\item fattori parassitari:
+	\begin{itemize}
+		\item Layout del circuito.
+		\item Capacità parassite.
+	\end{itemize} 
+\end{itemize}
+Lo scopo dell'ottimizzazione combinatoria è quello di partire dalla descrizione iniziale del circuito con i suoi vincoli, dalla lista delle specifiche e da una serie di librerie e funzioni primitive per arrivare a un'implementazione del circuito con queste librerie che rispetti i vincoli di prestazioni e che sia minimizzata in termini di area.\\
+Esistono diversi approcci per ottenere i risultati richiesti; alcuni approcci sono locali ovvero ottimizzano solo una parte del circuito mentre altri approcci sono globali. I principali approcci locali sono:
+\begin{itemize}
+\item il trasporto in avanti (THR)
+\item la somma condizzionale (GST)
+\item il trasporto sul bypass (GBX e KMS)
+\end{itemize}
+I primi due puntano sull'ottimizzazione dei livelli e quindi più improntati ad una ottimizzazione dell'area mentre il terzo è improntato sull'analisi dei false path.
+\subsubsection{Tree-Height Reduction - THR}
+La prima tecnica che analiziamo ha come principio quello di indivuduare i punti del circuito che violano i vincoli e ridurre questa parte.\\
+Dati gli arrival time all'ingresso e i required time alle uscite individuo la zona critica che non rispetta i tempi; nel caso di fig. \ref{fig:thr} in cui la parte critica concorre al calcolo dell'uscita "m" trovo una sottoparte non critica che può essere duplicata e collaso il percorso che viola i vincoli  risintetizzandolo. La risintetizzazione avviene solo su una parte del circuito altrimenti dovrei riprogettare tutto con conseguenti costi di riprogettazione, aumento di area ecc.
+\begin{figure}[t]
+\centering
+\includegraphics[width=16cm]{img/thr.png}
+\caption{Esempio di THR}
+\label{fig:thr}
+\end{figure}
+\subsubsection{GBX e KMS}
+L'idea del GBX è quella di bypassare il percorso critico inserendo a livello dell'eventuale porta di attivazione del percorso critico un uscita collegata ad un multiplexer e comandata dal valore che attiverebbe il percorso critico rendendo così il circuito più veloce.\\
+Il GBX comporta un piccolo aumento nell'area del circuito ed inoltre introduce un punto di non testabilità sul valore controllante del multiplexer.\\
+Si è così introdotto il meccanismo KMS che rimuove il percorso critico senza incrementare il ritardo. Per fare ciò si duplica il percorso critico fino all'ultimo nodo che contiene un \emph{fanout}; si inserisce inoltre un ingresso controllante sul primo nodo del percorso critico. Si ottiene così che le funzioni fino all'ultimo nodo con fanout non sono cambiate aggiungendo solo una piccola area al circuito.
+\subsubsection{Generalized Select Transform}
+Dato il percorso critico con due linee di ingresso delle quali una sola genera il percorso critico, in quanto il segnale arriva con un ritardo maggiore rispetto all'altro ingresso, allora si duplica tale percorso e si impongono all'ingresso dei due percorsi in un caso il valore 0 e nell'altro il valore 1 sulla linea che genera il percorso critico; si inserisce alla fine del percorso un multiplexer controllato dal valore della linea  duplicata. Questo meccanismo permette di anticipare il calcolo del percorso critico (vedi fig. \ref{fig:gst}).
+\begin{figure}[t]
+\centering
+\includegraphics[width=16cm]{img/gst.png}
+\caption{Esmpio di GST}
+\label{fig:gst}
+\end{figure}
+\subsection{Ottimizzazione sequenziale}
+L'ottimizzazione sequenziale tiene conto del tempo del circuito ed implica l'"introduzione" nel circuito di componenti atti a memorizzare lo stato passato del circuito.\\ Questo tipo di sintesi può essere applicata a diversi livelli di astrazione allontanandoci sempre più dal livello di sistema e avvicinandoci a quello fisico.\\ Questo implica un ottimizzazione migliore ma anche una maggior difficoltà di verifica.\\
+Le due tecniche principali di ottimizzazione sono:
+\begin{itemize}
+\item \textbf{Clock Skew Scheduling} si tratta di una tecnica che mira a bilanciare il ritardi delle porte attraverso dei registri individuali.
+\item \textbf{Retiming} tecnica che prevede di spostare i registri all'interno del circuito attuando inoltre delle ottimizzazioni combinatorie.
+\end{itemize}
+\subsubsection{Clock Skew Schedulig}
+Il clock skew scheduling si basa sul presupposto che la parte combinatoria tra due registri deve terminare la sua esecuzione entro il tempo di clock per permettere il campionamento del segnale di uscita. Più alcune costanti.
+\begin{figure}[hbt]
+\centering
+\includegraphics[width=16cm]{img/css.png}
+\caption{Porta con meccanismo di clock skew scheduling}
+\label{fig:css}
+\end{figure}
+Un circuito sequenziale sincrono può funzionare correttamente solo se vengono rispettati alcuni vincoli:
+$$S_u+D_{max}(u.v)+ SETUP_v\leq S_v+T$$
+$$S_u+D_{min}(u.v)\geq S_v+HOLD_v$$
+Il primo vincolo è detto di \emph{zero-clocking} ed afferma che il segnale deve raggiunge il registro $v$ prima del segnale di clock successivo; il tempo per raggiungere il registro successivo è dato dal tempo di setup del registro di arrimo più il ritardo massimo della parte combinatoria.\\
+Il secondo vincolo, invece, chiamato di \emph{double-clocking} specifica che il segnale in ingresso e in uscita è sicuro fino all'istante di clock overo che il segnale precedente duri al massimo fino al tempo di clock.\\
+In un circuito sincrono con un clock \emph{zero-skew} $S_u$ e $S_v$ sono uguali  e questo implica che il minimo periodo di clock T è uguale al massimo valore di $D_{max}(u,v)+SETUP_v$ presente nel circuito.
+Se il valore $S_u-S_v\leq 0$ il periodo di clock può essere minore del massimo ritardo del circuito.\\
+Lo scopo dell'ottimizzazione è quello di determinare il valore appropriato di $S_u$ e $S_v$ per tutte le coppie di registri per ottenere il minimo periodo di clock.\\
+I vantaggi di questa tecnica sono una meccanismo di post-sintesi per ridurre il periodo di clock praticamente gratuita e si mantiene il design del circuito.
+I problemi principali invece sono che i vincoli devono essere rispettati, è impossibile mescolare questa tecnica con quelle di ottimizzazione combinatoria ed infine si tende ad avere una replicazione degli alberi di clock.
+\subsubsection{Retiming}
+\begin{figure}[thb]
+\centering
+\includegraphics[width=16cm]{img/retiming.png}
+\caption{Esempio di retiming}
+\label{fig:retiming}
+\end{figure}
+Il retiming è una tecnica che consiste nello spostare prima o dopo il nodo alcuni buffer gia presenti nel circuito magari accorpando alcuni flip-flop. Questa tecnica risulta essere più semplice da attuare in quanto bisogna tenere in considerazione solo il vincolo di setup del buffer. Inoltre permette un'integrazione con altri metodi di integrazione sia sequenziale sia combinatoria per ottenere un ottimo globale. I punti a sfavore di questa tecnica sono il fatto che rendono più difficile la verifica e comportano un calcolo approssimativo del ritardo del circuito.\\
+Il retiming può avere due obiettivi, il primo quello di minimizzare l'area accorpando i filip-flop e il secondo è quello di ridurre il tempo di clock; questi due obiettivi possono essere ottimizzati insieme e a quel punto si parla di \emph{Retiming con ottimizzazione combinatoria}.
+Vediamo ora un algoritmo per il calcolo del retiming; rappresentiamo il circuito come un grafo $G(V,E,d,w)$ dove:
+\begin{itemize}
+\item $V\rightarrow$ è l'insieme delle porte
+\item $E\rightarrow$ è l'insieme delle interconnessioni 
+\item $d(v) =$ ritardo dei gate
+\item $w(e) = $ numero di registri sull'interconnessione
+\end{itemize}
+Vediamo l'esepio in fig. \ref{fig:retalgo}
+\begin{figure}[t]
+\centering
+\includegraphics[width=16cm]{img/retalgo.png}
+\caption{Esempio di creazione di un grafo per retiming}
+\label{fig:retalgo}
+\end{figure}
+Dove $\delta$ ha un ritardo di tre e $+$ ha un ritardo di 7 unità di tempo.Definiamo ora che cosa è un \emph{Percorso}, esso è un insieme di nodi ordinati del grafo con un nodo iniziale e uno finale.
+Il \emph{ritardo} di un percorso è la somma dei ritadi di tutti i nodi estremi inclusi. Il \emph{peso} di un percorso è la somma dei pesi degli archi ovvero la somma dei flip-flop presenti sul percorso.\\
+Dato il percorso:
+$$v_0\rightarrow^{e_0}v_1\rightarrow^{e_1}\dots v_{k-1}\rightarrow^{e_{k-1}}v_k$$
+Il suo ritardo è:
+$$d(p)=\sum_{i=0}^kd(v_i)$$
+Ed il suo peso è:
+$$w(p)=\sum_{i=0}^{k-1}w(e_i)$$
+A questo punto possiamo definire il periodo di clock del circuito come:
+$$c= \max_{p:w(p)=0}\{d(p)\}$$
+Significa che il massimo dei ritardi di tutti i percorsi con peso 0 definisce il ritardo massimo del circuito e quindi del periodo di clock.\\
+Definiamo ora un operazioni di retimind uguale a $-1$ se sposto dei registri dagli ingressi alle uscite, un retiming uguale a $+1$ se sposto i registri dalle uscite agli ingressi.
+Dati due nodi e l'arco ad esso associati definiamo il peso dell'arco dopo l'operazione di retiming come (fig. \ref{fig:retarc}):
+$$w_r(e)= w(e) + r(v) - r(u)$$
+dove $r(v)$ e $r(u)$ sono rispettivamente le operazioni di retiming sui nodi di uscita e quello di ingresso all'arco in esame.
+\begin{figure}[t]
+\centering
+\includegraphics[width=7cm]{img/retarc.png}
+\caption{Funzione di retiming}
+\label{fig:retarc}
+\end{figure}
+Definiamo ora il problema di minimizzazione del ciclo di clock tramite retiming.
+La funzione obiettivo è la minimizzazione del ritado massimo
+$$\hbox{minimize}\; c = \max_{P:w_r(p) = 0}\{d(p)\}$$
+Definiamo ora due matrici, la matrice dei pesi e la matrice dei ritardi
+$$W(u,v) = \min_p{w(p):u\rightarrow^p v}$$
+$$D(u,v) = \max_p{d(p):u\rightarrow^p v,w(p) = w(u,v)}$$
+Nel caso in esempio abbiamo a che le due matrici sono così composte:
+$$
+W=
+\begin{array}{cccc}
+0&2&2&2\\
+0&0&0&0\\
+0&2&0&0\\
+0&2&2&0\\
+\end{array}
+$$
+$$D=
+\begin{array}{cccc}
+0&3&6&13\\
+13&3&6&13\\
+10&13&3&10\\
+7&10&13&7\\
+\end{array}
+$$
+La matrice \emph{W} mi identifica i percorsi critici mentre mentre la matrice \emph{D}, in corrispondenza dei percorsi nulli della matrice \emph{W} mi identifica il periodo di clock; mi basta prendere il massimo tra tutti i numeri che hanno come peso il valore 0.\\
+Tutto questo mi aiuta ad ottimizzare il circuito tramite retiming; supponiamo di volere un determinato periodo di clock $T$ a questo punto dobbiamo applicare il retiming su quei percorsi che hanno un valore maggiore di $T$.
+Per minimizzare il numero dei registri invece mi basta minimizzare la somma dei pesi degli archi.

@@ -1,0 +1,37 @@
+\label{capitolo1}
+\section{Introduzione}
+\subsection{Progettazione Hardware 1}
+Nel corso di progettazione hardware 1 si tratterà la progettazione di sistemi complessi, non è solo a livello di VHDL, ma in realtà si tratteranno le metodologie di progettazione hardware e gli algoritmi per tale progettazione.\\
+Si tratteranno diversi aspetti del flusso di progettazione ovvero:
+\begin{itemize}
+\item Sintesi dei sistemi digitali: progettazione e costruzione del sistema
+\item Collaudo: fase tipica della progettazione hardware che non coincide con la verifica della corretta funzionalità del sistema rispetto alle specifiche.
+\item Verifica dei sistemi: questa è la vera fase di debug e di validazione rispetto alle specifiche.
+\end{itemize}
+I prerequisiti del corso sono la conoscienza degli argomenti trattati durante il corso di Reti Logiche. 
+L'esame si compone di una prova scritta della durata di un'ora e un quarto, composta da 4/5 esercizi per un totale di 32 punti.
+\subsection{Progettazione Hardware 2}
+Nato da un corso tenuto da docenti di architetture, tenta di presentare lo sviluppo di hardware e software partendo da una specifica che non definisce la distribuzione dei compiti tra hardware e software.\\
+Dove per software si parla di sistema dedicato. Mentre per hardware si intende una periferica (acceleratori hardware).
+Gli argomenti trattati nel corso sono:
+\begin{itemize}
+\item Fase di specifica e modellazione di un sistema: modellazione di un sistema fisico di tipo digitale (che cos'è un modello di computazione e comunicazione?) prestanto particolare attenzione ai problemi di determinismo, parallelismo e concorrenza.
+\item Progettazione e co-design: progettazione contemporanea di hardware e software (Problematiche di partizionamento, mapping delle risorse da usare).
+\item Co-simulazione a livello di sistema (dipende dal tempo a disposizine del corso).
+\end{itemize}
+Preriquisiti di progettazione hardware 2 sono gli argomenti trattati in architetture avanzate dei calcolatori e reti logiche.
+L'esame è composto da un test a risposta multipla che genera metà della valutazione finale mentre la seconda metà sarà assegnata previa realizzazione di un progetto che può essere di due tipi:
+\begin{itemize}
+\item Sviluppo di uno componente da integrare in un software per la progettazione assistita (CAD) da sviluppare in cpp.
+\item Ricerca bibliografica su un argomento assegnato dal docente.
+\end{itemize} 
+\section{Introduzione PHW1}
+Negli ultimi anni la complessità dei progetti hardware è di molto incrementata, mentre i tempi per la loro realizzazione si sono ridotti drasticamente.
+Per sopperire a queste mancanze la grandezza dei gruppi di lavoro è aumentata in maniera esponenziale, con progettisti con diverse capacità che lavorano in parallelo a diversi livelli di astrazione.
+La gestione delle complessità e delle comunicazioni di progetto è arrivata ad un punto critico e gli strumenti di progettazione e di sintesi anche se molto evoluti sono inadeguati allo sviluppo di tali progetti costringendo il progettista ad usare fino a 50 strumenti differenti.
+La sfida principale nella progettazione di un nuovo hardware si focalizzano principalmente sull'individuare il giusto compromesso tra time-to-market e costo/prestazioni.
+La simulazione è ancora il principale mezzo per la verifica funzionale del progetto ma molto spesso è inadeguata rispetto alle dimensioni dello stesso.\\
+Vi è un thrade of per quanto riguarda i modelli ad alto livello e quelli dettagliati; i modelli ad alto livello sono facili da mantenere ma omettono una grande quantità di informazioni rendendo così le simulazioni molto veloci. I modelli più dettagliati richiedono un partizionamento maggiore aumentando i costi di comunicazione, inoltre, pur essendo più facili da maneggiare e ottimizzare richiedono tempi di simulazione molto lunghi.
+Per questo i progettisti sono soliti dividere il problema in sottoproblemi più semplici e facili da controllare, dal sottoproblema individuano una soluzione tenedo conto delle condizioni di contorno e costruendo delle interfacce per lo scambio dei dati tra i componenti.\\
+Una buona integrazione tra gli strumenti di progettazione e metodologie di progetto comporta comporta indirizzare la complessità algoritmica mediante la suddivisione da parte dei progettisti del problema e l'indirizzamento degli strumenti automatici in base all'esperienza dei progettisti.\\
+
